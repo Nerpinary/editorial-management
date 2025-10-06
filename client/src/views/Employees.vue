@@ -125,7 +125,15 @@
               class="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
             >
               <div>
-                <p class="text-sm font-medium text-gray-900">{{ assignment.department_name }}</p>
+                <div class="flex items-center space-x-2">
+                  <p class="text-sm font-medium text-gray-900">{{ assignment.department_name }}</p>
+                  <span 
+                    class="px-1.5 py-0.5 text-xs font-medium rounded-full"
+                    :class="getComplexityBadgeClass(getDepartmentComplexity(assignment.department_id))"
+                  >
+                    {{ getComplexityLabel(getDepartmentComplexity(assignment.department_id)) }}
+                  </span>
+                </div>
                 <p class="text-xs text-gray-500">
                   {{ getEmployeeArticlesInDepartment(employee.id, assignment.department_id, assignment.monthly_articles, assignment.workload_percentage) }} из {{ assignment.monthly_articles }} статей
                 </p>
@@ -258,7 +266,7 @@
                 :key="department.id" 
                 :value="department.id"
               >
-                {{ department.name }} ({{ department.monthly_articles }} статей/месяц)
+                {{ department.name }} ({{ department.monthly_articles }} статей/месяц) - {{ getComplexityLabel(department.complexity) }}
               </option>
             </select>
           </div>
@@ -277,6 +285,7 @@
                   <p>Нагрузка будет рассчитана автоматически на основе:</p>
                   <ul class="list-disc list-inside mt-1">
                     <li>Месячного плана редакции</li>
+                    <li>Коэффициента сложности редакции (S: 50%, M: 100%, L: 150%)</li>
                     <li>Коэффициента сотрудника (СМВ: 0.8, МВ: 1.0, ММВ: 1.3)</li>
                     <li>Количества назначенных сотрудников</li>
                   </ul>
@@ -426,8 +435,21 @@ const getEmployeeMmvChecks = (employee) => {
 }
 
 const getEmployeeArticlesInDepartment = (employeeId, departmentId, monthlyArticles, workloadPercentage) => {
-  // Рассчитываем реальное количество статей сотрудника в редакции
+  // Показываем реальное количество статей (без учета сложности)
   return Math.round((workloadPercentage / 100.0) * monthlyArticles)
+}
+
+const getEmployeeScoringInDepartment = (employeeId, departmentId, monthlyArticles, workloadPercentage) => {
+  // Получаем информацию о редакции для расчета сложности
+  const department = departmentsStore.departments.find(d => d.id === departmentId)
+  const complexity = department?.complexity || 'M'
+  
+  // Коэффициенты сложности
+  const complexityCoefficients = { 'S': 0.5, 'M': 1.0, 'L': 1.5 }
+  const complexityCoeff = complexityCoefficients[complexity] || 1.0
+  
+  // Рассчитываем скоринг с учетом сложности
+  return Math.round((workloadPercentage / 100.0) * monthlyArticles * complexityCoeff)
 }
 
 const getEmployeeWorkloadNorm = (employee) => {
@@ -440,6 +462,29 @@ const getEmployeeOverloadPercentage = (employee) => {
 
 const isEmployeeOverloaded = (employee) => {
   return assignmentsStore.isEmployeeOverloaded(employee)
+}
+
+const getDepartmentComplexity = (departmentId) => {
+  const department = departmentsStore.departments.find(d => d.id === departmentId)
+  return department?.complexity || 'M'
+}
+
+const getComplexityLabel = (complexity) => {
+  switch (complexity) {
+    case 'S': return 'S'
+    case 'M': return 'M'
+    case 'L': return 'L'
+    default: return 'M'
+  }
+}
+
+const getComplexityBadgeClass = (complexity) => {
+  switch (complexity) {
+    case 'S': return 'bg-green-100 text-green-800'
+    case 'M': return 'bg-blue-100 text-blue-800'
+    case 'L': return 'bg-red-100 text-red-800'
+    default: return 'bg-gray-100 text-gray-800'
+  }
 }
 
 const getCategoryBadgeClass = (category) => {

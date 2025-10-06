@@ -30,6 +30,7 @@ function initDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
       monthly_articles INTEGER DEFAULT 0,
+      complexity TEXT DEFAULT 'M' CHECK (complexity IN ('S', 'M', 'L')),
       description TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
@@ -62,52 +63,64 @@ function initDatabase() {
     )
   `);
 
+  // Миграция: добавляем поле complexity если его нет
+  db.run(`
+    ALTER TABLE editorial_departments ADD COLUMN complexity TEXT DEFAULT 'M' CHECK (complexity IN ('S', 'M', 'L'))
+  `, (err) => {
+    // Игнорируем ошибку если колонка уже существует
+  });
+
   // Заполняем начальными данными из вашей таблицы
   insertInitialData();
 }
 
 function insertInitialData() {
   const departments = [
-    { name: 'Бизнес', monthly_articles: 11 },
-    { name: 'Вещи', monthly_articles: 86 },
-    { name: 'Вложения', monthly_articles: 0 },
-    { name: 'Гайды', monthly_articles: 15 },
-    { name: 'Город', monthly_articles: 8 },
-    { name: 'Дети', monthly_articles: 12 },
-    { name: 'Едакция', monthly_articles: 25 },
-    { name: 'Животные', monthly_articles: 18 },
-    { name: 'Интернет', monthly_articles: 22 },
-    { name: 'Интервью', monthly_articles: 5 },
-    { name: 'Кто помогает', monthly_articles: 3 },
-    { name: 'Медицина', monthly_articles: 35 },
-    { name: 'Мозг', monthly_articles: 28 },
-    { name: 'Недвижимость', monthly_articles: 15 },
-    { name: 'Образование', monthly_articles: 20 },
-    { name: 'Поп-культура', monthly_articles: 30 },
-    { name: 'Право', monthly_articles: 12 },
-    { name: 'Списки', monthly_articles: 25 },
-    { name: 'Спорт', monthly_articles: 18 },
-    { name: 'Сравнятор', monthly_articles: 10 },
-    { name: 'Статистика', monthly_articles: 8 },
-    { name: 'Тесты', monthly_articles: 15 },
-    { name: 'Техника', monthly_articles: 45 },
-    { name: 'Чемодан', monthly_articles: 12 },
-    { name: 'ЧД', monthly_articles: 20 },
-    { name: 'ЧД-микро', monthly_articles: 15 },
-    { name: 'Шорты', monthly_articles: 50 },
-    { name: 'Новости', monthly_articles: 176 },
-    { name: 'UGC', monthly_articles: 80 },
-    { name: 'Тюнинг', monthly_articles: 25 },
-    { name: 'Подкасты и Видео', monthly_articles: 40 },
-    { name: 'Дневники трат', monthly_articles: 15 },
-    { name: 'Вакансии', monthly_articles: 20 },
-    { name: 'Фичеры', monthly_articles: 35 }
+    // S - Простые редакции (50% сложности)
+    { name: 'Шорты', monthly_articles: 50, complexity: 'S' },
+    { name: 'UGC', monthly_articles: 80, complexity: 'S' },
+    { name: 'Новости', monthly_articles: 176, complexity: 'S' },
+    { name: 'Списки', monthly_articles: 25, complexity: 'S' },
+    { name: 'Тесты', monthly_articles: 15, complexity: 'S' },
+    { name: 'Сравнятор', monthly_articles: 10, complexity: 'S' },
+    { name: 'Статистика', monthly_articles: 8, complexity: 'S' },
+    { name: 'Кто помогает', monthly_articles: 3, complexity: 'S' },
+    
+    // M - Средние редакции (100% сложности)
+    { name: 'Бизнес', monthly_articles: 11, complexity: 'M' },
+    { name: 'Вещи', monthly_articles: 86, complexity: 'M' },
+    { name: 'Гайды', monthly_articles: 15, complexity: 'M' },
+    { name: 'Город', monthly_articles: 8, complexity: 'M' },
+    { name: 'Дети', monthly_articles: 12, complexity: 'M' },
+    { name: 'Едакция', monthly_articles: 25, complexity: 'M' },
+    { name: 'Животные', monthly_articles: 18, complexity: 'M' },
+    { name: 'Интернет', monthly_articles: 22, complexity: 'M' },
+    { name: 'Интервью', monthly_articles: 5, complexity: 'M' },
+    { name: 'Недвижимость', monthly_articles: 15, complexity: 'M' },
+    { name: 'Образование', monthly_articles: 20, complexity: 'M' },
+    { name: 'Поп-культура', monthly_articles: 30, complexity: 'M' },
+    { name: 'Право', monthly_articles: 12, complexity: 'M' },
+    { name: 'Спорт', monthly_articles: 18, complexity: 'M' },
+    { name: 'Техника', monthly_articles: 45, complexity: 'M' },
+    { name: 'Чемодан', monthly_articles: 12, complexity: 'M' },
+    { name: 'ЧД', monthly_articles: 20, complexity: 'M' },
+    { name: 'ЧД-микро', monthly_articles: 15, complexity: 'M' },
+    { name: 'Тюнинг', monthly_articles: 25, complexity: 'M' },
+    { name: 'Подкасты и Видео', monthly_articles: 40, complexity: 'M' },
+    { name: 'Дневники трат', monthly_articles: 15, complexity: 'M' },
+    { name: 'Вакансии', monthly_articles: 20, complexity: 'M' },
+    { name: 'Фичеры', monthly_articles: 35, complexity: 'M' },
+    
+    // L - Сложные редакции (150% сложности)
+    { name: 'Медицина', monthly_articles: 35, complexity: 'L' },
+    { name: 'Мозг', monthly_articles: 28, complexity: 'L' },
+    { name: 'Вложения', monthly_articles: 0, complexity: 'L' }
   ];
 
   departments.forEach(dept => {
     db.run(
-      'INSERT OR IGNORE INTO editorial_departments (name, monthly_articles) VALUES (?, ?)',
-      [dept.name, dept.monthly_articles]
+      'INSERT OR IGNORE INTO editorial_departments (name, monthly_articles, complexity) VALUES (?, ?, ?)',
+      [dept.name, dept.monthly_articles, dept.complexity]
     );
   });
 
@@ -174,32 +187,32 @@ app.get('/api/departments', (req, res) => {
 });
 
 app.post('/api/departments', (req, res) => {
-  const { name, monthly_articles, description } = req.body;
+  const { name, monthly_articles, complexity, description } = req.body;
   db.run(
-    'INSERT INTO editorial_departments (name, monthly_articles, description) VALUES (?, ?, ?)',
-    [name, monthly_articles, description],
+    'INSERT INTO editorial_departments (name, monthly_articles, complexity, description) VALUES (?, ?, ?, ?)',
+    [name, monthly_articles, complexity || 'M', description],
     function(err) {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
       }
-      res.json({ id: this.lastID, name, monthly_articles, description });
+      res.json({ id: this.lastID, name, monthly_articles, complexity: complexity || 'M', description });
     }
   );
 });
 
 app.put('/api/departments/:id', (req, res) => {
   const { id } = req.params;
-  const { name, monthly_articles, description } = req.body;
+  const { name, monthly_articles, complexity, description } = req.body;
   db.run(
-    'UPDATE editorial_departments SET name = ?, monthly_articles = ?, description = ? WHERE id = ?',
-    [name, monthly_articles, description, id],
+    'UPDATE editorial_departments SET name = ?, monthly_articles = ?, complexity = ?, description = ? WHERE id = ?',
+    [name, monthly_articles, complexity || 'M', description, id],
     function(err) {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
       }
-      res.json({ id, name, monthly_articles, description });
+      res.json({ id, name, monthly_articles, complexity: complexity || 'M', description });
     }
   );
 });
@@ -298,7 +311,8 @@ app.get('/api/assignments', (req, res) => {
       e.category as employee_category,
       e.capacity as employee_capacity,
       ed.name as department_name,
-      ed.monthly_articles
+      ed.monthly_articles,
+      ed.complexity as department_complexity
     FROM employee_assignments ea
     JOIN employees e ON ea.employee_id = e.id
     JOIN editorial_departments ed ON ea.department_id = ed.id
@@ -545,6 +559,7 @@ function redistributeDepartmentWorkload(departmentId) {
     const query = `
       SELECT 
         ed.monthly_articles,
+        ed.complexity,
         e.id as employee_id,
         e.name as employee_name,
         e.category,
@@ -568,11 +583,17 @@ function redistributeDepartmentWorkload(departmentId) {
         return;
       }
       
-      // Рассчитываем новые проценты нагрузки на основе capacity
+      // Получаем коэффициент сложности редакции
+      const complexityCoefficients = { 'S': 0.5, 'M': 1.0, 'L': 1.5 };
+      const complexity = rows[0]?.complexity || 'M';
+      const complexityCoeff = complexityCoefficients[complexity] || 1.0;
+      
+      // Рассчитываем новые проценты нагрузки на основе capacity и сложности
       const totalCapacity = rows.reduce((sum, row) => sum + row.capacity, 0);
       
       const updatePromises = rows.map(row => {
         // Новый процент = (capacity сотрудника / общая capacity) * 100%
+        // Учитываем сложность редакции в расчете
         const newPercentage = Math.round((row.capacity / totalCapacity) * 100);
         
         return new Promise((resolveUpdate, rejectUpdate) => {

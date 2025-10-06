@@ -92,12 +92,18 @@ export const useAssignmentsStore = defineStore('assignments', {
       return assignments.reduce((total, assignment) => total + assignment.workload_percentage, 0)
     },
 
-    // Получить общее количество статей сотрудника
+    // Получить общий скоринг сотрудника (с учетом сложности)
     getEmployeeTotalArticles(employeeId) {
       const assignments = this.getEmployeeAssignments(employeeId)
       return assignments.reduce((total, assignment) => {
-        const articlesInDepartment = Math.round((assignment.workload_percentage / 100.0) * assignment.monthly_articles)
-        return total + articlesInDepartment
+        // Получаем информацию о сложности редакции
+        const complexity = assignment.department_complexity || 'M'
+        const complexityCoefficients = { 'S': 0.5, 'M': 1.0, 'L': 1.5 }
+        const complexityCoeff = complexityCoefficients[complexity] || 1.0
+        
+        // Рассчитываем скоринг с учетом сложности
+        const scoringInDepartment = Math.round((assignment.workload_percentage / 100.0) * assignment.monthly_articles * complexityCoeff)
+        return total + scoringInDepartment
       }, 0)
     },
 

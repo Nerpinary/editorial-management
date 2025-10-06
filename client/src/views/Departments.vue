@@ -42,7 +42,15 @@
         <div class="flex justify-between items-start mb-4">
           <div>
             <h3 class="text-lg font-semibold text-gray-900">{{ department.name }}</h3>
-            <p class="text-sm text-gray-500">{{ department.monthly_articles }} статей/месяц</p>
+            <div class="flex items-center space-x-2">
+              <p class="text-sm text-gray-500">{{ department.monthly_articles }} статей/месяц</p>
+              <span 
+                class="px-2 py-1 text-xs font-medium rounded-full"
+                :class="getComplexityBadgeClass(department.complexity)"
+              >
+                {{ getComplexityLabel(department.complexity) }}
+              </span>
+            </div>
           </div>
           <div class="flex space-x-2">
             <button @click="editDepartment(department)" class="text-gray-400 hover:text-gray-600">
@@ -159,7 +167,7 @@
             class="w-full btn-secondary text-sm inline-flex items-center justify-center"
           >
             <UserPlusIcon class="w-4 h-4 mr-2" />
-            Назначить сотрудника
+            Назначить сотрудников
           </button>
           
           <button 
@@ -202,6 +210,17 @@
               placeholder="0"
             />
           </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Сложность редакции</label>
+            <select v-model="form.complexity" required class="input-field">
+              <option value="S">S - Простая (50% сложности)</option>
+              <option value="M">M - Средняя (100% сложности)</option>
+              <option value="L">L - Сложная (150% сложности)</option>
+            </select>
+            <p class="text-xs text-gray-500 mt-1">
+              Коэффициент влияет на расчет реальной нагрузки сотрудников
+            </p>
+          </div>
           <div class="mb-6">
             <label class="block text-sm font-medium text-gray-700 mb-2">Описание</label>
             <textarea
@@ -223,29 +242,23 @@
       </div>
     </div>
 
-    <!-- Модальное окно назначения сотрудника -->
+    <!-- Модальное окно назначения сотрудников -->
     <div v-if="showAssignmentModalRef" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg p-6 w-full max-w-md">
+      <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <h3 class="text-lg font-medium text-gray-900 mb-4">
-          Назначить сотрудника в {{ selectedDepartment?.name }}
+          Назначить сотрудников в {{ selectedDepartment?.name }}
         </h3>
         <form @submit.prevent="saveAssignment">
           <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Сотрудник</label>
-            <select v-model="assignmentForm.employee_id" required class="input-field">
-              <option value="">Выберите сотрудника</option>
-              <option 
-                v-for="employee in availableEmployees" 
-                :key="employee.id" 
-                :value="employee.id"
-              >
-                {{ employee.name }} ({{ getCategoryLabel(employee.category) }})
-                {{ employee.preferred_departments && employee.preferred_departments.includes(selectedDepartment?.name) ? '★' : '' }}
-              </option>
-            </select>
-            <p v-if="getPreferredEmployees(selectedDepartment?.name).length > 0" class="text-xs text-green-600 mt-1">
-              ★ Сотрудники с опытом в этой редакции
-            </p>
+            <MultiSelectEmployees
+              :employees="availableEmployees"
+              v-model:selected="assignmentForm.selectedEmployees"
+              label="Сотрудники"
+              placeholder="Выберите сотрудников для назначения"
+              :department-name="selectedDepartment?.name"
+              hint="★ Сотрудники с опытом в этой редакции"
+              required
+            />
           </div>
           <div class="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <div class="flex items-center">
@@ -273,8 +286,12 @@
             <button type="button" @click="showAssignmentModalRef = false" class="btn-secondary">
               Отмена
             </button>
-            <button type="submit" class="btn-primary">
-              Назначить
+            <button 
+              type="submit" 
+              class="btn-primary"
+              :disabled="!assignmentForm.selectedEmployees || assignmentForm.selectedEmployees.length === 0"
+            >
+              Назначить {{ assignmentForm.selectedEmployees?.length || 0 }} сотрудников
             </button>
           </div>
         </form>
@@ -288,6 +305,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useDepartmentsStore } from '../stores/departments'
 import { useEmployeesStore } from '../stores/employees'
 import { useAssignmentsStore } from '../stores/assignments'
+import MultiSelectEmployees from '../components/MultiSelectEmployees.vue'
 import { 
   PlusIcon, 
   PencilIcon, 
@@ -312,11 +330,12 @@ const editingDepartment = ref(null)
 const form = ref({
   name: '',
   monthly_articles: 0,
+  complexity: 'M',
   description: ''
 })
 
 const assignmentForm = ref({
-  employee_id: ''
+  selectedEmployees: []
 })
 
 const filteredDepartments = computed(() => {
@@ -417,6 +436,24 @@ const getCategoryLabel = (category) => {
   }
 }
 
+const getComplexityLabel = (complexity) => {
+  switch (complexity) {
+    case 'S': return 'S (50%)'
+    case 'M': return 'M (100%)'
+    case 'L': return 'L (150%)'
+    default: return 'M (100%)'
+  }
+}
+
+const getComplexityBadgeClass = (complexity) => {
+  switch (complexity) {
+    case 'S': return 'bg-green-100 text-green-800'
+    case 'M': return 'bg-blue-100 text-blue-800'
+    case 'L': return 'bg-red-100 text-red-800'
+    default: return 'bg-gray-100 text-gray-800'
+  }
+}
+
 const editDepartment = (department) => {
   editingDepartment.value = department
   form.value = { ...department }
@@ -449,17 +486,28 @@ const saveDepartment = async () => {
 const showAssignmentModal = (department) => {
   selectedDepartment.value = department
   assignmentForm.value = {
-    employee_id: ''
+    selectedEmployees: []
   }
   showAssignmentModalRef.value = true
 }
 
 const saveAssignment = async () => {
   try {
-    await assignmentsStore.createAssignment({
-      employee_id: assignmentForm.value.employee_id,
-      department_id: selectedDepartment.value.id
-    })
+    if (!assignmentForm.value.selectedEmployees || assignmentForm.value.selectedEmployees.length === 0) {
+      alert('Выберите хотя бы одного сотрудника')
+      return
+    }
+
+    // Создаем назначения для всех выбранных сотрудников
+    const assignmentPromises = assignmentForm.value.selectedEmployees.map(employee => 
+      assignmentsStore.createAssignment({
+        employee_id: employee.id,
+        department_id: selectedDepartment.value.id
+      })
+    )
+
+    await Promise.all(assignmentPromises)
+    
     // Обновляем валидацию и детали после назначения
     await Promise.all([
       validateDepartment(selectedDepartment.value.id),
@@ -467,7 +515,7 @@ const saveAssignment = async () => {
     ])
     showAssignmentModalRef.value = false
   } catch (error) {
-    console.error('Ошибка при назначении сотрудника:', error)
+    console.error('Ошибка при назначении сотрудников:', error)
   }
 }
 
