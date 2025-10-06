@@ -1,3 +1,6 @@
+// Импортируем полифиллы первыми
+import './polyfills.js'
+
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import router from './router'

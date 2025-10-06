@@ -11,5 +11,14 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  define: {
+    global: 'globalThis',
+  },
+  optimizeDeps: {
+    include: ['crypto-js']
+  },
+  esbuild: {
+    target: 'es2020'
   }
 })
