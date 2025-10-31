@@ -261,6 +261,8 @@ import { computed, onMounted } from 'vue'
 import { useDepartmentsStore } from '../stores/departments'
 import { useEmployeesStore } from '../stores/employees'
 import { useAssignmentsStore } from '../stores/assignments'
+import { useRolesStore } from '../stores/roles'
+import { useRoleBadge } from '../composables/useRoleBadge'
 import { 
   BuildingOfficeIcon, 
   CheckCircleIcon, 
@@ -272,6 +274,8 @@ import {
 const departmentsStore = useDepartmentsStore()
 const employeesStore = useEmployeesStore()
 const assignmentsStore = useAssignmentsStore()
+const rolesStore = useRolesStore()
+const { getRoleBadgeClass, getRoleLabel } = useRoleBadge()
 
 const coveredDepartments = computed(() => {
   return assignmentsStore.analytics.filter(dept => dept.coverage_percentage >= 80).length
@@ -341,21 +345,11 @@ const getStatusLabel = (coverage) => {
 }
 
 const getCategoryBadgeClass = (category) => {
-  switch (category) {
-    case 'СМВ': return 'badge badge-СМВ'
-    case 'МВ': return 'badge badge-МВ'
-    case 'ММВ': return 'badge badge-ММВ'
-    default: return 'badge bg-gray-100 text-gray-800'
-  }
+  return getRoleBadgeClass(category)
 }
 
 const getCategoryLabel = (category) => {
-  switch (category) {
-    case 'СМВ': return 'СМВ'
-    case 'МВ': return 'МВ'
-    case 'ММВ': return 'ММВ'
-    default: return category
-  }
+  return getRoleLabel(category)
 }
 
 const getWorkloadColor = (employee) => {
@@ -389,7 +383,8 @@ onMounted(async () => {
     departmentsStore.fetchDepartments(),
     employeesStore.fetchEmployees(),
     assignmentsStore.fetchAssignments(),
-    assignmentsStore.fetchAnalytics()
+    assignmentsStore.fetchAnalytics(),
+    rolesStore.fetchRoles()
   ])
 })
 </script>

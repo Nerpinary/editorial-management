@@ -114,18 +114,47 @@
                   <span class="text-gray-500">Нагрузка:</span>
                   <span class="font-medium">{{ detail.workload_percentage }}% ({{ detail.articles_assigned }} статей)</span>
                 </div>
+                <div class="mb-2">
+                  <span class="text-gray-500">Действие:</span>
+                  <select
+                    v-model="detail.action_type"
+                    @change="updateAssignmentAction(detail.assignment_id, detail.action_type)"
+                    class="ml-2 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option 
+                      v-for="action in getAvailableActionsForEmployee({ category: detail.category })"
+                      :key="action.value"
+                      :value="action.value"
+                    >
+                      {{ action.label }}
+                    </option>
+                  </select>
+                </div>
+                <div v-if="detail.scoring" class="mb-2">
+                  <span class="text-gray-500">Скоринг:</span>
+                  <span class="font-semibold text-purple-600">{{ detail.scoring.total.toFixed(2) }} очков</span>
+                </div>
                 <div class="grid grid-cols-3 gap-1">
                   <div v-if="detail.breakdown.typeset > 0" class="bg-blue-100 p-1 rounded text-center">
                     <div class="font-medium text-blue-800">{{ detail.breakdown.typeset }}</div>
-                    <div class="text-blue-600">Верстает</div>
+                    <div class="text-blue-600 text-xs">Верстает</div>
+                    <div v-if="detail.scoring" class="text-blue-700 font-semibold text-xs">
+                      {{ detail.scoring.typeset.toFixed(2) }}
+                    </div>
                   </div>
                   <div v-if="detail.breakdown.self_check > 0" class="bg-green-100 p-1 rounded text-center">
                     <div class="font-medium text-green-800">{{ detail.breakdown.self_check }}</div>
-                    <div class="text-green-600">Самопроверка</div>
+                    <div class="text-green-600 text-xs">Самопроверка</div>
+                    <div v-if="detail.scoring" class="text-green-700 font-semibold text-xs">
+                      {{ detail.scoring.self_check.toFixed(2) }}
+                    </div>
                   </div>
                   <div v-if="detail.breakdown.check_mmv > 0" class="bg-orange-100 p-1 rounded text-center">
                     <div class="font-medium text-orange-800">{{ detail.breakdown.check_mmv }}</div>
-                    <div class="text-orange-600">Проверка ММВ</div>
+                    <div class="text-orange-600 text-xs">Проверка</div>
+                    <div v-if="detail.scoring" class="text-orange-700 font-semibold text-xs">
+                      {{ detail.scoring.check_mmv.toFixed(2) }}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -244,54 +273,57 @@
 
     <!-- Модальное окно назначения сотрудников -->
     <div v-if="showAssignmentModalRef" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <h3 class="text-lg font-medium text-gray-900 mb-4">
-          Назначить сотрудников в {{ selectedDepartment?.name }}
-        </h3>
-        <form @submit.prevent="saveAssignment">
-          <div class="mb-4">
-            <MultiSelectEmployees
-              :employees="availableEmployees"
-              v-model:selected="assignmentForm.selectedEmployees"
-              label="Сотрудники"
-              placeholder="Выберите сотрудников для назначения"
-              :department-name="selectedDepartment?.name"
-              hint="★ Сотрудники с опытом в этой редакции"
-              required
-            />
-          </div>
-          <div class="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div class="flex items-center">
-              <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-                </svg>
-              </div>
-              <div class="ml-3">
-                <h3 class="text-sm font-medium text-blue-800">
-                  Автоматическое распределение
-                </h3>
-                <div class="mt-1 text-sm text-blue-700">
-                  <p>Нагрузка будет рассчитана автоматически на основе:</p>
-                  <ul class="list-disc list-inside mt-1">
-                    <li>Месячного плана редакции: {{ selectedDepartment?.monthly_articles }} статей</li>
-                    <li>Коэффициента сотрудника (СМВ: 1.0, МВ: 1.2, ММВ: 1.5)</li>
-                    <li>Количества назначенных сотрудников</li>
-                  </ul>
+      <div class="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] flex flex-col shadow-xl">
+        <div class="p-6 pb-4 flex-shrink-0">
+          <h3 class="text-lg font-medium text-gray-900">
+            Назначить сотрудников в {{ selectedDepartment?.name }}
+          </h3>
+        </div>
+        <form @submit.prevent="saveAssignment" class="flex flex-col flex-1 overflow-hidden">
+          <div class="flex-1 overflow-y-auto px-6 pb-4">
+            <div class="mb-4">
+              <MultiSelectEmployees
+                :employees="availableEmployees"
+                v-model:selected="assignmentForm.selectedEmployees"
+                label="Сотрудники"
+                placeholder="Выберите сотрудников для назначения"
+                :department-name="selectedDepartment?.name"
+                hint="★ Сотрудники с опытом в этой редакции"
+                required
+              />
+            </div>
+
+            <div class="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div class="flex items-center">
+                <div class="flex-shrink-0">
+                  <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <h3 class="text-sm font-medium text-blue-800">
+                    Автоматическое назначение
+                  </h3>
+                  <div class="mt-1 text-sm text-blue-700">
+                    <p>Сотрудники будут назначены с действием по умолчанию для их роли.</p>
+                    <p class="mt-2">Вы сможете изменить действие для каждого сотрудника на странице редакции после назначения.</p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-          <div class="flex justify-end space-x-3">
+          
+          <!-- Кнопки - всегда видны -->
+          <div class="flex-shrink-0 border-t border-gray-200 bg-gray-50 px-6 py-4 flex justify-end space-x-3 rounded-b-lg">
             <button type="button" @click="showAssignmentModalRef = false" class="btn-secondary">
               Отмена
             </button>
             <button 
               type="submit" 
               class="btn-primary"
-              :disabled="!assignmentForm.selectedEmployees || assignmentForm.selectedEmployees.length === 0"
+              :disabled="selectedEmployeesCount === 0"
             >
-              Назначить {{ assignmentForm.selectedEmployees?.length || 0 }} сотрудников
+              Назначить {{ selectedEmployeesCount }} {{ getEmployeeWord(selectedEmployeesCount) }}
             </button>
           </div>
         </form>
@@ -301,10 +333,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useDepartmentsStore } from '../stores/departments'
 import { useEmployeesStore } from '../stores/employees'
 import { useAssignmentsStore } from '../stores/assignments'
+import { useRolesStore } from '../stores/roles'
+import { useRoleBadge } from '../composables/useRoleBadge'
 import MultiSelectEmployees from '../components/MultiSelectEmployees.vue'
 import { 
   PlusIcon, 
@@ -318,6 +352,8 @@ import {
 const departmentsStore = useDepartmentsStore()
 const employeesStore = useEmployeesStore()
 const assignmentsStore = useAssignmentsStore()
+const rolesStore = useRolesStore()
+const { getRoleBadgeClass, getRoleLabel } = useRoleBadge()
 
 const searchQuery = ref('')
 const sortBy = ref('name')
@@ -372,6 +408,26 @@ const availableEmployees = computed(() => {
   })
 })
 
+const selectedEmployeesCount = computed(() => {
+  return assignmentForm.value.selectedEmployees?.length || 0
+})
+
+const getEmployeeWord = (count) => {
+  const lastDigit = count % 10
+  const lastTwoDigits = count % 100
+  
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 19) {
+    return 'сотрудников'
+  }
+  if (lastDigit === 1) {
+    return 'сотрудника'
+  }
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return 'сотрудника'
+  }
+  return 'сотрудников'
+}
+
 const getDepartmentAssignments = (departmentId) => {
   return assignmentsStore.assignments.filter(a => a.department_id === departmentId)
 }
@@ -418,22 +474,13 @@ const getCoverageBarColor = (department) => {
   return 'bg-red-500'
 }
 
+
 const getCategoryBadgeClass = (category) => {
-  switch (category) {
-    case 'СМВ': return 'badge badge-СМВ'
-    case 'МВ': return 'badge badge-МВ'
-    case 'ММВ': return 'badge badge-ММВ'
-    default: return 'badge bg-gray-100 text-gray-800'
-  }
+  return getRoleBadgeClass(category)
 }
 
 const getCategoryLabel = (category) => {
-  switch (category) {
-    case 'СМВ': return 'СМВ'
-    case 'МВ': return 'МВ'
-    case 'ММВ': return 'ММВ'
-    default: return category
-  }
+  return getRoleLabel(category)
 }
 
 const getComplexityLabel = (complexity) => {
@@ -483,6 +530,24 @@ const saveDepartment = async () => {
   }
 }
 
+const getAvailableActionsForEmployee = (employee) => {
+  const role = rolesStore.getRoleByName(employee.category)
+  if (!role || !Array.isArray(role.actions)) {
+    return [{ value: 'self_check', label: 'Самопроверка' }]
+  }
+  
+  const actionLabels = {
+    'typeset': 'Верстка',
+    'check': 'Проверка',
+    'self_check': 'Самопроверка'
+  }
+  
+  return role.actions.map(action => ({
+    value: action,
+    label: actionLabels[action] || action
+  }))
+}
+
 const showAssignmentModal = (department) => {
   selectedDepartment.value = department
   assignmentForm.value = {
@@ -499,10 +564,12 @@ const saveAssignment = async () => {
     }
 
     // Создаем назначения для всех выбранных сотрудников
+    // action_type будет установлен по умолчанию на сервере (первое доступное действие роли)
     const assignmentPromises = assignmentForm.value.selectedEmployees.map(employee => 
       assignmentsStore.createAssignment({
         employee_id: employee.id,
         department_id: selectedDepartment.value.id
+        // action_type не указываем - сервер установит первое доступное действие роли по умолчанию
       })
     )
 
@@ -516,6 +583,18 @@ const saveAssignment = async () => {
     showAssignmentModalRef.value = false
   } catch (error) {
     console.error('Ошибка при назначении сотрудников:', error)
+    alert(error.response?.data?.error || 'Ошибка при назначении сотрудников')
+  }
+}
+
+const updateAssignmentAction = async (assignmentId, actionType) => {
+  try {
+    await assignmentsStore.updateAssignment(assignmentId, { action_type: actionType })
+    // Обновляем детали редакции
+    await loadDepartmentDetails(selectedDepartment.value?.id || Object.keys(departmentDetails.value)[0])
+  } catch (error) {
+    console.error('Ошибка при обновлении действия:', error)
+    alert(error.response?.data?.error || 'Ошибка при обновлении действия')
   }
 }
 
@@ -605,7 +684,8 @@ onMounted(async () => {
     departmentsStore.fetchDepartments(),
     employeesStore.fetchEmployees(),
     assignmentsStore.fetchAssignments(),
-    assignmentsStore.fetchAnalytics()
+    assignmentsStore.fetchAnalytics(),
+    rolesStore.fetchRoles()
   ])
   
   // Валидируем все редакции и загружаем детали при загрузке

@@ -28,11 +28,12 @@
                 <!-- Список сотрудников -->
                 <div class="py-1 max-h-56 overflow-auto">
                     <div v-for="employee in filteredEmployees" :key="employee.id"
-                        class="employee-option flex items-center px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                        class="employee-option flex items-center px-3 py-2 hover:bg-gray-100 cursor-pointer transition-colors"
                         @click="toggleEmployee(employee)">
                         <input :id="`employee-${employee.id}`" type="checkbox" :checked="isSelected(employee.id)"
-                            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
-                        <label :for="`employee-${employee.id}`" class="ml-3 flex-1 cursor-pointer">
+                            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded pointer-events-none" 
+                            @click.stop />
+                        <div class="ml-3 flex-1 pointer-events-none">
                             <div class="flex items-center justify-between">
                                 <div>
                                     <span class="text-sm font-medium text-gray-900">{{ employee.name }}</span>
@@ -48,7 +49,7 @@
                                     <span class="text-xs text-gray-400">{{ employee.capacity }}x</span>
                                 </div>
                             </div>
-                        </label>
+                        </div>
                     </div>
 
                     <div v-if="filteredEmployees.length === 0" class="px-3 py-2 text-sm text-gray-500">
@@ -71,16 +72,11 @@
                     </div>
                 </div>
 
-                <!-- Кнопки (показываются только если есть выбранные) -->
-                <div v-if="tempSelection.length > 0"
-                    class="sticky bottom-0 border-t border-gray-200 p-2 flex justify-end gap-2 bg-gray-50">
-                    <button @click="applySelection"
+                <!-- Кнопка закрытия -->
+                <div class="sticky bottom-0 border-t border-gray-200 p-2 flex justify-end bg-gray-50">
+                    <button @click="showDropdown = false"
                         class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
-                        ОК
-                    </button>
-                    <button @click="cancelSelection"
-                        class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
-                        Отмена
+                        Закрыть
                     </button>
                 </div>
             </div>
@@ -93,6 +89,11 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { ChevronDownIcon } from '@heroicons/vue/24/outline'
+import { useRolesStore } from '../stores/roles'
+import { useRoleBadge } from '../composables/useRoleBadge'
+
+const rolesStore = useRolesStore()
+const { getRoleBadgeClass, getRoleLabel } = useRoleBadge()
 
 const props = defineProps({
     employees: Array,
@@ -116,20 +117,41 @@ const dropdownRef = ref(null)
 
 // Закрытие при клике вне
 const handleClickOutside = (e) => {
-    if (dropdownRef.value && !dropdownRef.value.contains(e.target)) {
-        showDropdown.value = false
-    }
+  if (dropdownRef.value && !dropdownRef.value.contains(e.target)) {
+    showDropdown.value = false
+  }
 }
-onMounted(() => document.addEventListener('click', handleClickOutside))
+onMounted(async () => {
+  document.addEventListener('click', handleClickOutside)
+  if (rolesStore.roles.length === 0) {
+    await rolesStore.fetchRoles()
+  }
+})
 onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
-// Фильтрация
+// Фильтрация и сортировка
 const filteredEmployees = computed(() => {
-    if (!searchInput.value) return props.employees
-    const q = searchInput.value.toLowerCase()
-    return props.employees.filter(
-        e => e.name.toLowerCase().includes(q) || e.category.toLowerCase().includes(q)
-    )
+    let filtered = props.employees
+    
+    // Фильтрация по поиску
+    if (searchInput.value) {
+        const q = searchInput.value.toLowerCase()
+        filtered = filtered.filter(
+            e => e.name.toLowerCase().includes(q) || e.category.toLowerCase().includes(q)
+        )
+    }
+    
+    // Сортировка: сначала сотрудники с preferred_departments (со звездочкой), затем остальные
+    return filtered.sort((a, b) => {
+        const aHasPreferred = props.departmentName && a.preferred_departments && a.preferred_departments.includes(props.departmentName)
+        const bHasPreferred = props.departmentName && b.preferred_departments && b.preferred_departments.includes(props.departmentName)
+        
+        if (aHasPreferred && !bHasPreferred) return -1
+        if (!aHasPreferred && bHasPreferred) return 1
+        
+        // Если оба с звездочкой или оба без - сортируем по имени
+        return a.name.localeCompare(b.name)
+    })
 })
 
 // Проверка выбранных
@@ -138,18 +160,22 @@ const isSelected = (id) => tempSelection.value.some(e => e.id === id)
 // Переключение
 const toggleEmployee = (employee) => {
     const index = tempSelection.value.findIndex(e => e.id === employee.id)
-    if (index > -1) tempSelection.value.splice(index, 1)
-    else tempSelection.value.push(employee)
+    if (index > -1) {
+        tempSelection.value.splice(index, 1)
+    } else {
+        tempSelection.value.push(employee)
+    }
+    // Сразу обновляем selectedEmployees и отправляем изменения родителю
+    selectedEmployees.value = [...tempSelection.value]
+    emit('update:selected', [...selectedEmployees.value])
 }
 
-// Применить выбор
+// Применить выбор (закрыть dropdown)
 const applySelection = () => {
-    selectedEmployees.value = [...tempSelection.value]
-    emit('update:selected', selectedEmployees.value)
     showDropdown.value = false
 }
 
-// Отмена
+// Отмена (восстановить из selectedEmployees)
 const cancelSelection = () => {
     tempSelection.value = [...selectedEmployees.value]
     showDropdown.value = false
@@ -167,14 +193,19 @@ const removeEmployee = (id) => {
 
 // Метка категории
 const getCategoryLabel = (category) => {
-    const map = { 'СМВ': 'СМВ', 'МВ': 'МВ', 'ММВ': 'ММВ' }
-    return map[category] || category
+  return getRoleLabel(category)
 }
 
 // Синхронизация
 watch(() => props.selected, (newVal) => {
-    selectedEmployees.value = [...newVal]
-    tempSelection.value = [...newVal]
+    if (Array.isArray(newVal)) {
+        const newArray = [...newVal]
+        selectedEmployees.value = newArray
+        tempSelection.value = newArray
+    } else {
+        selectedEmployees.value = []
+        tempSelection.value = []
+    }
 }, { immediate: true })
 
 // Отображение в input

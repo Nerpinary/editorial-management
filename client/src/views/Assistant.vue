@@ -193,11 +193,14 @@ import { ref, computed, onMounted } from 'vue'
 import { useDepartmentsStore } from '../stores/departments'
 import { useEmployeesStore } from '../stores/employees'
 import { useAssignmentsStore } from '../stores/assignments'
+import { useRolesStore } from '../stores/roles'
+import { useRoleBadge } from '../composables/useRoleBadge'
 import { SparklesIcon } from '@heroicons/vue/24/outline'
 
 const departmentsStore = useDepartmentsStore()
 const employeesStore = useEmployeesStore()
 const assignmentsStore = useAssignmentsStore()
+const rolesStore = useRolesStore()
 
 const recommendations = ref([])
 const isGenerating = ref(false)
@@ -234,13 +237,10 @@ const getEmployeeCategory = (employeeId) => {
   return employee ? employee.category : 'Неизвестный'
 }
 
+const { getRoleBadgeClass } = useRoleBadge()
+
 const getCategoryBadgeClass = (category) => {
-  const classes = {
-    'СМВ': 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800',
-    'МВ': 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800',
-    'ММВ': 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800'
-  }
-  return classes[category] || 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800'
+  return `inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeClass(category).replace('badge ', '')}`
 }
 
 // Algorithm for generating recommendations
@@ -459,7 +459,8 @@ onMounted(async () => {
   await Promise.all([
     departmentsStore.fetchDepartments(),
     employeesStore.fetchEmployees(),
-    assignmentsStore.fetchAssignments()
+    assignmentsStore.fetchAssignments(),
+    rolesStore.fetchRoles()
   ])
 })
 </script>

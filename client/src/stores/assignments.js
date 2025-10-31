@@ -51,8 +51,21 @@ export const useAssignmentsStore = defineStore('assignments', {
         await this.fetchAnalytics() // Обновляем аналитику
         return response.data
       } catch (error) {
-        this.error = error.message
+        this.error = error.response?.data?.error || error.message
         console.error('Ошибка создания назначения:', error)
+        throw error
+      }
+    },
+
+    async updateAssignment(id, assignment) {
+      try {
+        const response = await axios.put(`/api/assignments/${id}`, assignment)
+        await this.fetchAssignments()
+        await this.fetchAnalytics()
+        return response.data
+      } catch (error) {
+        this.error = error.response?.data?.error || error.message
+        console.error('Ошибка обновления назначения:', error)
         throw error
       }
     },

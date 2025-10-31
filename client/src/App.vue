@@ -36,7 +36,8 @@
 import { 
   HomeIcon, 
   BuildingOfficeIcon, 
-  UsersIcon, 
+  UsersIcon,
+  UserGroupIcon,
   ChartBarIcon,
   SparklesIcon 
 } from '@heroicons/vue/24/outline'
@@ -45,6 +46,7 @@ const navigation = [
   { name: 'Дашборд', routeName: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Редакции', routeName: 'Departments', href: '/departments', icon: BuildingOfficeIcon },
   { name: 'Сотрудники', routeName: 'Employees', href: '/employees', icon: UsersIcon },
+  { name: 'Роли', routeName: 'Roles', href: '/roles', icon: UserGroupIcon },
   { name: 'Помощник', routeName: 'Assistant', href: '/assistant', icon: SparklesIcon },
   { name: 'Аналитика', routeName: 'Analytics', href: '/analytics', icon: ChartBarIcon }
 ]

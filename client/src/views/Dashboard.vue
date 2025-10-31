@@ -171,6 +171,8 @@ import { computed, onMounted } from 'vue'
 import { useDepartmentsStore } from '../stores/departments'
 import { useEmployeesStore } from '../stores/employees'
 import { useAssignmentsStore } from '../stores/assignments'
+import { useRolesStore } from '../stores/roles'
+import { useRoleBadge } from '../composables/useRoleBadge'
 import { 
   BuildingOfficeIcon, 
   UsersIcon, 
@@ -181,6 +183,8 @@ import {
 const departmentsStore = useDepartmentsStore()
 const employeesStore = useEmployeesStore()
 const assignmentsStore = useAssignmentsStore()
+const rolesStore = useRolesStore()
+const { getRoleBadgeClass, getRoleLabel } = useRoleBadge()
 
 const totalArticles = computed(() => {
   return departmentsStore.departments.reduce((sum, dept) => sum + dept.monthly_articles, 0)
@@ -215,21 +219,11 @@ const overloadedEmployeesCount = computed(() => {
 })
 
 const getCategoryBadgeClass = (category) => {
-  switch (category) {
-    case 'СМВ': return 'badge badge-СМВ'
-    case 'МВ': return 'badge badge-МВ'
-    case 'ММВ': return 'badge badge-ММВ'
-    default: return 'badge bg-gray-100 text-gray-800'
-  }
+  return getRoleBadgeClass(category)
 }
 
 const getCategoryLabel = (category) => {
-  switch (category) {
-    case 'СМВ': return 'Старший менеджер выпуска'
-    case 'МВ': return 'Менеджер выпуска'
-    case 'ММВ': return 'Младший менеджер выпуска'
-    default: return category
-  }
+  return getRoleLabel(category)
 }
 
 onMounted(async () => {
@@ -237,7 +231,8 @@ onMounted(async () => {
     departmentsStore.fetchDepartments(),
     employeesStore.fetchEmployees(),
     assignmentsStore.fetchAssignments(),
-    assignmentsStore.fetchAnalytics()
+    assignmentsStore.fetchAnalytics(),
+    rolesStore.fetchRoles()
   ])
 })
 </script>

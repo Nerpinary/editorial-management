@@ -26,9 +26,13 @@
         </div>
         <select v-model="categoryFilter" class="input-field w-48">
           <option value="">Все категории</option>
-          <option value="СМВ">СМВ</option>
-          <option value="МВ">МВ</option>
-          <option value="ММВ">ММВ</option>
+          <option 
+            v-for="role in rolesStore.roles" 
+            :key="role.id" 
+            :value="role.name"
+          >
+            {{ role.name }}
+          </option>
         </select>
         <select v-model="workloadFilter" class="input-field w-48">
           <option value="">Все</option>
@@ -194,11 +198,15 @@
           </div>
           <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-2">Грейд</label>
-            <select v-model="form.category" required class="input-field">
+            <select v-model="form.category" @change="updateCapacityFromRole" required class="input-field">
               <option value="">Выберите грейд</option>
-              <option value="СМВ">СМВ - Старший менеджер выпуска</option>
-              <option value="МВ">МВ - Менеджер выпуска</option>
-              <option value="ММВ">ММВ - Младший менеджер выпуска</option>
+              <option 
+                v-for="role in rolesStore.roles" 
+                :key="role.id" 
+                :value="role.name"
+              >
+                {{ role.name }} - {{ role.description || role.name }}
+              </option>
             </select>
           </div>
           <div class="mb-4">
@@ -214,7 +222,7 @@
               placeholder="1.0"
             />
             <p class="text-xs text-gray-500 mt-1">
-              СМВ: 1.0, МВ: 1.2, ММВ: 1.5 (с учетом проверки)
+              Емкость из роли будет установлена автоматически при выборе грейда
             </p>
           </div>
           <div class="mb-6">
@@ -315,6 +323,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useDepartmentsStore } from '../stores/departments'
 import { useEmployeesStore } from '../stores/employees'
 import { useAssignmentsStore } from '../stores/assignments'
+import { useRolesStore } from '../stores/roles'
+import { useRoleBadge } from '../composables/useRoleBadge'
 import { 
   PlusIcon, 
   PencilIcon, 
@@ -325,6 +335,8 @@ import {
 const departmentsStore = useDepartmentsStore()
 const employeesStore = useEmployeesStore()
 const assignmentsStore = useAssignmentsStore()
+const rolesStore = useRolesStore()
+const { getRoleBadgeClass, getRoleLabel } = useRoleBadge()
 
 const searchQuery = ref('')
 const categoryFilter = ref('')
@@ -488,20 +500,19 @@ const getComplexityBadgeClass = (complexity) => {
 }
 
 const getCategoryBadgeClass = (category) => {
-  switch (category) {
-    case 'СМВ': return 'badge badge-СМВ'
-    case 'МВ': return 'badge badge-МВ'
-    case 'ММВ': return 'badge badge-ММВ'
-    default: return 'badge bg-gray-100 text-gray-800'
-  }
+  return getRoleBadgeClass(category)
 }
 
 const getCategoryLabel = (category) => {
-  switch (category) {
-    case 'СМВ': return 'СМВ'
-    case 'МВ': return 'МВ'
-    case 'ММВ': return 'ММВ'
-    default: return category
+  return getRoleLabel(category)
+}
+
+const updateCapacityFromRole = () => {
+  if (form.value.category) {
+    const role = rolesStore.getRoleByName(form.value.category)
+    if (role) {
+      form.value.capacity = role.capacity
+    }
   }
 }
 
@@ -598,7 +609,8 @@ onMounted(async () => {
     departmentsStore.fetchDepartments(),
     employeesStore.fetchEmployees(),
     assignmentsStore.fetchAssignments(),
-    assignmentsStore.fetchAnalytics()
+    assignmentsStore.fetchAnalytics(),
+    rolesStore.fetchRoles()
   ])
 })
 </script>
